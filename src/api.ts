@@ -2,11 +2,41 @@ const API_BASE = "http://localhost:3000/api/v1";
 
 type SessionInfo = {
   token: string;
-  expires_at: string; // ISO timestamp
+  expires_at: string;
 };
 
+type ApiError = {
+  code?: string;
+  message: string;
+  status?: number;
+};
+
+function normalizeExpiresToISO(expires: string): string {
+  if (!expires) return new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  let d = new Date(expires);
+  if (isFinite(d.getTime())) return d.toISOString();
+
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(expires)) {
+    const s = expires.replace(" ", "T") + "Z";
+    d = new Date(s);
+    if (isFinite(d.getTime())) return d.toISOString();
+  }
+
+  try {
+    const s = expires.replace(" ", "T") + "Z";
+    d = new Date(s);
+    if (isFinite(d.getTime())) return d.toISOString();
+  } catch {}
+
+  return new Date(Date.now() + 60 * 60 * 1000).toISOString();
+}
+
 async function saveSession(info: SessionInfo) {
-  localStorage.setItem("zcloudpass_session", JSON.stringify(info));
+  const normalized = {
+    ...info,
+    expires_at: normalizeExpiresToISO(String(info.expires_at)),
+  };
+  localStorage.setItem("zcloudpass_session", JSON.stringify(normalized));
 }
 
 function loadSession(): SessionInfo | null {
@@ -25,42 +55,82 @@ function clearSession() {
 
 function isSessionExpired(session: SessionInfo) {
   try {
-    const exp = new Date(session.expires_at).getTime();
+    const exp = Date.parse(String(session.expires_at));
+    if (isNaN(exp)) return true;
     return Date.now() > exp;
   } catch {
     return true;
   }
 }
 
-async function createSessionForEmail(email: string): Promise<SessionInfo> {
-  const res = await fetch(`${API_BASE}/auth/session`, {
+async function parseErrorResponse(res: Response): Promise<ApiError> {
+  const status = res.status;
+  try {
+    const body = await res.json();
+    const code = body?.error || body?.code;
+    const message = body?.message || body?.error || JSON.stringify(body);
+    return { code, message, status };
+  } catch {
+    const text = await res.text().catch(() => "");
+    return { message: text || `HTTP ${status}`, status };
+  }
+}
+
+async function tryPostJson(url: string, body: unknown) {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify(body),
   });
+  return res;
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Failed to create session: ${res.status} ${text}`);
+async function createSessionForEmail(
+  email: string,
+  masterPassword?: string,
+): Promise<SessionInfo> {
+  const payload: any = { email };
+  if (masterPassword) payload.master_password = masterPassword;
+
+  let res = await tryPostJson(`${API_BASE}/auth/session`, payload);
+
+  if (res.status === 404) {
+    res = await tryPostJson(`${API_BASE}/auth/login`, payload);
   }
 
-  const data = (await res.json()) as {
-    session_token: string;
-    expires_at: string;
-  };
+  if (res.status === 404) {
+    const rootBase = API_BASE.replace("/api/v1", "");
+    res = await tryPostJson(`${rootBase}/auth/session`, payload);
+  }
 
+  if (res.status === 404) {
+    const rootBase = API_BASE.replace("/api/v1", "");
+    res = await tryPostJson(`${rootBase}/auth/login`, payload);
+  }
+
+  if (!res.ok) {
+    const err = await parseErrorResponse(res);
+    const e: any = new Error(err.message || "Failed to create session");
+    e.code = err.code || `http_${err.status}`;
+    throw e;
+  }
+
+  const data = await res.json();
   const info: SessionInfo = {
     token: data.session_token,
-    expires_at: data.expires_at,
+    expires_at: normalizeExpiresToISO(String(data.expires_at)),
   };
   await saveSession(info);
   return info;
 }
 
-async function ensureSession(email: string): Promise<SessionInfo> {
+async function ensureSession(
+  email: string,
+  masterPassword?: string,
+): Promise<SessionInfo> {
   const s = loadSession();
   if (!s || isSessionExpired(s)) {
-    return await createSessionForEmail(email);
+    return await createSessionForEmail(email, masterPassword);
   }
   return s;
 }
@@ -71,46 +141,68 @@ function authHeadersIfAvailable(): Record<string, string> {
   return { Authorization: `Bearer ${s.token}` };
 }
 
-/**
- * Registers a user on the backend.
- *
- * Note: The backend expects registration data at POST /api/v1/auth/register.
- * We send { email, encrypted_vault } so the server can store the initial vault blob.
- *
- * This function preserves the previous signature: registerUser(email, encryptedVault)
- * and returns the parsed JSON response.
- */
-export async function registerUser(email: string, encryptedVault: string) {
+export async function fetchHealth(): Promise<string> {
+  const res = await fetch(`${API_BASE.replace("/api/v1", "")}/health`);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Health check failed: ${res.status} ${txt}`);
+  }
+  return res.text();
+}
+
+export async function fetchAuthHealth(): Promise<string> {
+  const res = await fetch(`${API_BASE}/auth/health`);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Auth health check failed: ${res.status} ${txt}`);
+  }
+  return res.text();
+}
+
+export async function registerUser(
+  email: string,
+  encryptedVault: string | null,
+  masterPassword?: string,
+  username?: string,
+) {
+  if (!email) throw new Error("email is required");
+  if (!masterPassword) {
+    throw new Error("masterPassword is required for registration");
+  }
+
+  const payload: any = {
+    email,
+    master_password: masterPassword,
+    encrypted_vault: encryptedVault,
+  };
+  if (username) payload.username = username;
+
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, encrypted_vault: encryptedVault }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Registration failed: ${res.status} ${txt}`);
+    const err = await parseErrorResponse(res);
+    const e: any = new Error(err.message);
+    e.code = err.code || `http_${err.status}`;
+    throw e;
   }
 
-  // Return whatever the backend returns (keeps compatibility with previous implementation)
+  await createSessionForEmail(email, masterPassword);
+
   return res.json();
 }
 
-/**
- * GET the encrypted vault from the backend for the given email.
- *
- * Behavior:
- * - The frontend previously called getVault(email) directly, so to remain compatible we:
- *   1) Ensure there's a valid session (creating one via POST /auth/session if needed)
- *   2) Call GET /api/v1/vault/ with Authorization header
- *
- * Returns the string encrypted_vault (may be null/empty depending on server).
- */
-export async function getVault(email: string): Promise<string> {
-  // Ensure session exists (the backend currently issues sessions by email lookup)
-  await ensureSession(email);
+export async function getVault(
+  email: string,
+  masterPassword?: string,
+): Promise<{ encrypted_vault: string | null; vault_version?: number }> {
+  if (!email) throw new Error("email is required to fetch vault");
+  await ensureSession(email, masterPassword);
 
-  const headers = {
+  const headers: Record<string, string> = {
     ...authHeadersIfAvailable(),
     "Content-Type": "application/json",
   };
@@ -121,62 +213,118 @@ export async function getVault(email: string): Promise<string> {
   });
 
   if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Failed to get vault: ${res.status} ${txt}`);
+    const err = await parseErrorResponse(res);
+    const e: any = new Error(err.message);
+    e.code = err.code || `http_${err.status}`;
+    throw e;
   }
 
   const data = await res.json();
-  // The backend returns { encrypted_vault: "<string|null>" }
-  return data.encrypted_vault;
+  return {
+    encrypted_vault: data?.encrypted_vault ?? null,
+    vault_version:
+      typeof data?.vault_version === "number" ? data.vault_version : undefined,
+  };
 }
 
-/**
- * Update the encrypted vault for the given email.
- *
- * Behavior:
- * - Ensures a session exists (creates one if missing/expired)
- * - Calls PUT /api/v1/vault/ with Authorization header and body { encrypted_vault }
- *
- * Keeps the previous signature updateVault(email, encryptedVault).
- */
-export async function updateVault(email: string, encryptedVault: string) {
-  await ensureSession(email);
+export async function updateVault(
+  email: string,
+  encryptedVault: string,
+  masterPassword?: string,
+  vault_version?: number,
+): Promise<{ vault_version?: number } | null> {
+  if (!email) throw new Error("email is required to update vault");
+  await ensureSession(email, masterPassword);
 
-  const headers = {
+  const headers: Record<string, string> = {
     ...authHeadersIfAvailable(),
     "Content-Type": "application/json",
   };
 
+  const payload: any = { encrypted_vault: encryptedVault };
+  if (typeof vault_version === "number") payload.vault_version = vault_version;
+
   const res = await fetch(`${API_BASE}/vault/`, {
     method: "PUT",
     headers,
-    body: JSON.stringify({ encrypted_vault: encryptedVault }),
+    body: JSON.stringify(payload),
   });
 
+  if (res.status === 409) {
+    const err = await parseErrorResponse(res);
+    const e: any = new Error(err.message || "Conflict updating vault");
+    e.code = err.code || "conflict";
+    throw e;
+  }
+
   if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Failed to update vault: ${res.status} ${txt}`);
+    const err = await parseErrorResponse(res);
+    const e: any = new Error(err.message || "Failed to update vault");
+    e.code = err.code || `http_${err.status}`;
+    throw e;
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    return null;
   }
 }
 
-/**
- * Optional helper to explicitly login (create a session) and return stored session info.
- * Not used by current UI but exported for completeness.
- */
-export async function login(email: string): Promise<SessionInfo> {
-  return await createSessionForEmail(email);
+export async function login(
+  email: string,
+  masterPassword?: string,
+): Promise<SessionInfo> {
+  if (!email || !masterPassword)
+    throw new Error("email and masterPassword required for login");
+  return await createSessionForEmail(email, masterPassword);
 }
 
-/**
- * Logout and clear stored session token.
- */
-export function logout() {
-  clearSession();
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+) {
+  const headers: Record<string, string> = {
+    ...authHeadersIfAvailable(),
+    "Content-Type": "application/json",
+  };
+
+  if (!headers.Authorization) throw new Error("Not authenticated");
+
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await parseErrorResponse(res);
+    const e: any = new Error(err.message || "Failed to change password");
+    e.code = err.code || `http_${err.status}`;
+    throw e;
+  }
+
+  return res.json();
 }
 
-/**
- * Return current session token (if present and not expired), otherwise null.
- */
+export async function logout() {
+  try {
+    const headers: Record<string, string> = {
+      ...authHeadersIfAvailable(),
+      "Content-Type": "application/json",
+    };
+    if (headers.Authorization) {
+      await fetch(`${API_BASE}/auth/logout`, { method: "POST", headers });
+    }
+  } catch {
+  } finally {
+    clearSession();
+  }
+}
+
 export function getSessionToken(): string | null {
   const s = loadSession();
   if (!s || isSessionExpired(s)) return null;
