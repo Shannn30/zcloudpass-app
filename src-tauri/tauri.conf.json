@@ -1,21 +1,51 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "zcloudpass-app",
-  "version": "0.1.0",
-  "identifier": "com.zcloudpass.app",
-
   "build": {
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:1420"
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
   },
-
-  "app": {
+  "package": {
+    "productName": "ZCloudPass",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": ["http://localhost:8080/**", "https://**"]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.zcloudpass.app",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "security": {
+      "csp": null
+    },
     "windows": [
       {
+        "fullscreen": false,
+        "resizable": true,
         "title": "ZCloudPass",
-        "width": 900,
-        "height": 700,
-        "resizable": true
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
       }
     ]
   }
