@@ -89,27 +89,27 @@ export default function Register({ onRegisterSuccess }: RegisterProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-md border shadow-sm">
+      <Card
+        className="w-full max-w-md border shadow-sm card-animate hover-lift"
+        style={{ animationDelay: "80ms" }}
+      >
         <CardHeader className="space-y-1 pb-4">
-          <div className="flex items-center justify-center mb-2">
+          <div className="flex items-center justify-center mb-2 animate-fade-up" style={{ animationDelay: "120ms" }}>
             <div className="p-3 bg-primary/10 rounded-2xl">
               <Lock className="w-8 h-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-center text-foreground">
+          <CardTitle className="text-2xl font-bold tracking-tight text-center text-foreground animate-fade-up" style={{ animationDelay: "140ms" }}>
             Secure Your World
           </CardTitle>
-          <CardDescription className="text-center text-base">
+          <CardDescription className="text-center text-base animate-fade-up" style={{ animationDelay: "160ms" }}>
             Create your master vault in seconds
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5 animate-fade-up" style={{ animationDelay: "180ms" }}>
             {error && (
-              <Alert
-                variant="destructive"
-                className="animate-in slide-in-from-top-2"
-              >
+              <Alert variant="destructive" className="animate-fade-up" style={{ animationDelay: "200ms" }}>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
@@ -218,7 +218,7 @@ export default function Register({ onRegisterSuccess }: RegisterProps) {
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-muted border flex gap-3">
+            <div className="p-3 rounded-xl bg-muted border flex gap-3 animate-fade-up" style={{ animationDelay: "220ms" }}>
               <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0" />
               <p className="text-[11px] leading-relaxed text-foreground font-medium">
                 IMPORTANT: Your master password is the ONLY key to your vault.
@@ -228,7 +228,8 @@ export default function Register({ onRegisterSuccess }: RegisterProps) {
 
             <Button
               type="submit"
-              className="w-full h-11 text-base font-semibold"
+              className="w-full h-11 text-base font-semibold animate-fade-up hover-lift"
+              style={{ animationDelay: "260ms" }}
               disabled={loading}
             >
               {loading ? "Securing..." : "Create Master Vault"}
