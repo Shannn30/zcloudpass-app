@@ -106,7 +106,10 @@ export default function Landing({ theme, toggleTheme }: LandingProps) {
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 md:px-6 text-center space-y-8 md:space-y-12 max-w-6xl mx-auto py-12 md:py-20">
         <div className="space-y-3 md:space-y-4">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter text-foreground leading-tight">
+          <h1
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter text-foreground leading-tight animate-fade-up"
+            style={{ animationDelay: "80ms" }}
+          >
             Your Digital Keys,
             <br />
             <span className="underline decoration-primary decoration-4 underline-offset-8">
@@ -114,7 +117,10 @@ export default function Landing({ theme, toggleTheme }: LandingProps) {
             </span>
             .
           </h1>
-          <p className="text-base md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
+          <p
+            className="text-base md:text-xl text-muted-foreground max-w-2xl mx-auto px-4 animate-fade-up"
+            style={{ animationDelay: "160ms" }}
+          >
             A minimalist, open-source password manager focused on speed and
             end-to-end encryption. No bloat. Pure security.
           </p>
@@ -124,7 +130,8 @@ export default function Landing({ theme, toggleTheme }: LandingProps) {
           <Link to="/register" className="w-full sm:w-auto">
             <Button
               size="lg"
-              className="w-full sm:w-auto h-12 md:h-14 px-6 md:px-8 text-base md:text-lg font-medium bg-foreground text-background hover:bg-foreground/90"
+              className="w-full sm:w-auto h-12 md:h-14 px-6 md:px-8 text-base md:text-lg font-medium bg-foreground text-background hover:bg-foreground/90 animate-fade-up hover-lift"
+              style={{ animationDelay: "240ms" }}
             >
               Create Your Vault
               <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
@@ -134,7 +141,8 @@ export default function Landing({ theme, toggleTheme }: LandingProps) {
             <Button
               size="lg"
               variant="outline"
-              className="w-full h-12 px-6 text-base font-medium"
+              className="w-full h-12 px-6 text-base font-medium animate-fade-up"
+              style={{ animationDelay: "260ms" }}
             >
               Sign In
             </Button>
@@ -142,7 +150,10 @@ export default function Landing({ theme, toggleTheme }: LandingProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 pt-8 md:pt-12 w-full px-4 md:px-0">
-          <div className="space-y-3 p-4 md:p-6 border rounded-xl text-left">
+          <div
+            className="space-y-3 p-4 md:p-6 border rounded-xl text-left card-animate hover-lift"
+            style={{ animationDelay: "320ms" }}
+          >
             <div className="flex items-center gap-3">
               <div className="bg-muted w-10 h-10 flex items-center justify-center rounded-lg shrink-0">
                 <Lock className="w-5 h-5" />
@@ -155,7 +166,10 @@ export default function Landing({ theme, toggleTheme }: LandingProps) {
             </p>
           </div>
 
-          <div className="space-y-3 p-4 md:p-6 border rounded-xl text-left">
+          <div
+            className="space-y-3 p-4 md:p-6 border rounded-xl text-left card-animate hover-lift"
+            style={{ animationDelay: "380ms" }}
+          >
             <div className="flex items-center gap-3">
               <div className="bg-muted w-10 h-10 flex items-center justify-center rounded-lg shrink-0">
                 <ShieldCheckIcon className="w-5 h-5" />
@@ -168,7 +182,10 @@ export default function Landing({ theme, toggleTheme }: LandingProps) {
             </p>
           </div>
 
-          <div className="space-y-3 p-4 md:p-6 border rounded-xl text-left md:col-span-1 col-span-1">
+          <div
+            className="space-y-3 p-4 md:p-6 border rounded-xl text-left md:col-span-1 col-span-1 card-animate hover-lift"
+            style={{ animationDelay: "440ms" }}
+          >
             <div className="flex items-center gap-3">
               <div className="bg-muted w-10 h-10 flex items-center justify-center rounded-lg shrink-0">
                 <CloudSync className="w-5 h-5" />
