@@ -128,7 +128,7 @@ export default function Landing({ theme, toggleTheme }: LandingProps) {
                 animateOn="view"
                 revealDirection="start"
                 sequential={true}
-                speed={50}
+                speed={75}
                 maxIterations={15}
                 className="text-inherit"
                 parentClassName="inline-block"
